@@ -1,0 +1,1543 @@
+{
+  "name": "Project: Automated Weekly Newsletter Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 7,
+              "triggerAtHour": 14
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -768,
+        1424
+      ],
+      "id": "aa5eba4d-ae1b-49f0-9adf-b5053d0d33e5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://techcabal.com/category/newsletters/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        208
+      ],
+      "id": "ca77888d-214e-4d9a-95e0-bcc973c85390",
+      "name": "TechCabal",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://citizen.digital/news/tech/26",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        1424
+      ],
+      "id": "c2108382-89d1-438c-b568-602990d0366e",
+      "name": "citizen business",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1440
+      ],
+      "id": "2f6e4922-c58c-4068-8ef1-5fb66446e519",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"source\": \"string\",\n  \"headline\": \"string\",\n  \"brief\": \"string\",\n  \"model\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        1440
+      ],
+      "id": "f8224eef-d191-4097-80ec-4e5038dd56b5",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        224
+      ],
+      "id": "c3bc9ed5-d2ba-428d-9de1-4c6b8a0ac30b",
+      "name": "Mistral Cloud Chat Model1",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"source\": \"string\",\n  \"headline\": \"string\",\n  \"brief\": \"string\",\n  \"model\": \"string\"\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        224
+      ],
+      "id": "9831eef4-73d9-4416-835c-143244006025",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let html = item.json.data || '';\n\n  // Remove scripts/styles\n  html = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '');\n  html = html.replace(/<style[\\s\\S]*?<\\/style>/gi, '');\n  html = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '');\n  html = html.replace(/<!--[\\s\\S]*?-->/g, '');\n\n  // Extract headings\n  const matches = [\n    ...html.matchAll(/<h1[^>]*>(.*?)<\\/h1>/gi),\n    ...html.matchAll(/<h2[^>]*>(.*?)<\\/h2>/gi),\n    ...html.matchAll(/<h3[^>]*>(.*?)<\\/h3>/gi)\n  ];\n\n  let headlines = matches.map(m =>\n    m[1]\n      .replace(/<[^>]+>/g, '')\n      .replace(/\\s+/g, ' ')\n      .trim()\n  );\n\n  // Remove junk\n  headlines = headlines.filter(h =>\n    h.length > 15 &&\n    h.length < 200 &&\n    !h.toLowerCase().includes('read more')\n  );\n\n  // Remove duplicates\n  headlines = [...new Set(headlines)];\n\n  return {\n    json: {\n      headlines\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        816
+      ],
+      "id": "b9a13d8a-66e0-4ad2-8416-ce7eb43ede24",
+      "name": "techarena data cleaner"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let html = item.json.data || '';\n\n  // Remove scripts/styles\n  html = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '');\n  html = html.replace(/<style[\\s\\S]*?<\\/style>/gi, '');\n  html = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '');\n  html = html.replace(/<!--[\\s\\S]*?-->/g, '');\n\n  // Extract headings\n  const matches = [\n    ...html.matchAll(/<h1[^>]*>(.*?)<\\/h1>/gi),\n    ...html.matchAll(/<h2[^>]*>(.*?)<\\/h2>/gi),\n    ...html.matchAll(/<h3[^>]*>(.*?)<\\/h3>/gi)\n  ];\n\n  let headlines = matches.map(m =>\n    m[1]\n      .replace(/<[^>]+>/g, '')\n      .replace(/\\s+/g, ' ')\n      .trim()\n  );\n\n  // Remove junk\n  headlines = headlines.filter(h =>\n    h.length > 15 &&\n    h.length < 200 &&\n    !h.toLowerCase().includes('read more')\n  );\n\n  // Remove duplicates\n  headlines = [...new Set(headlines)];\n\n  return {\n    json: {\n      headlines\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        2032
+      ],
+      "id": "042c1844-82e5-4cbc-8a1b-595b1e37addc",
+      "name": "techweez data cleaner1"
+    },
+    {
+      "parameters": {
+        "url": "https://techweez.com/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        2032
+      ],
+      "id": "325f196d-64a3-46c7-a867-110a588aef33",
+      "name": "techweez",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let html = item.json.data || '';\n\n  // Remove scripts/styles\n  html = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '');\n  html = html.replace(/<style[\\s\\S]*?<\\/style>/gi, '');\n  html = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '');\n  html = html.replace(/<!--[\\s\\S]*?-->/g, '');\n\n  // Extract headings\n  const matches = [\n    ...html.matchAll(/<h1[^>]*>(.*?)<\\/h1>/gi),\n    ...html.matchAll(/<h2[^>]*>(.*?)<\\/h2>/gi),\n    ...html.matchAll(/<h3[^>]*>(.*?)<\\/h3>/gi)\n  ];\n\n  let headlines = matches.map(m =>\n    m[1]\n      .replace(/<[^>]+>/g, '')\n      .replace(/\\s+/g, ' ')\n      .trim()\n  );\n\n  // Remove junk\n  headlines = headlines.filter(h =>\n    h.length > 15 &&\n    h.length < 200 &&\n    !h.toLowerCase().includes('read more')\n  );\n\n  // Remove duplicates\n  headlines = [...new Set(headlines)];\n\n  return {\n    json: {\n      headlines\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        2640
+      ],
+      "id": "1b5e5dc2-3da4-4413-b824-68f33a181436",
+      "name": "tech-ish data cleaner"
+    },
+    {
+      "parameters": {
+        "url": "https://tech-ish.com/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        2640
+      ],
+      "id": "dc7e094c-687a-4b59-9cdf-ca58ad321608",
+      "name": "tech-ish",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Choose the single most important technology headline.\n\nReturn ONLY valid JSON.\n\nIMPORTANT:\n- In \"model\",  auto detect which ai model you are using for modelChoose the single most important technology headline.\nReturn ONLY valid JSON. No markdown, no backticks.\n\nFor the \"model\" field, select your identity from this list ONLY:\n- \"mistral-small\"\n- \"gpt-4o-mini\"\nPick the one that matches what you are. Do not write anything else.\n\n{\n  \"source\": \"techarena\",\n  \"headline\": \"headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \"pick from list above\"\n}\n\nHeadlines:\n{{$json.headlines}}\n\n",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        608
+      ],
+      "id": "cb8901ef-cc49-4fae-9dd5-5149fa173642",
+      "name": "Role-Based Agents techarena",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        832
+      ],
+      "id": "b04e138e-ae03-4866-aa20-84f57942e3e6",
+      "name": "Mistral Cloud Chat Model2",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"source\": \"string\",\n  \"headline\": \"string\",\n  \"brief\": \"string\",\n  \"model\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        832
+      ],
+      "id": "a63516f2-bca2-463d-b8cb-7262a1a54a7e",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        2048
+      ],
+      "id": "4364c70a-173e-444e-9cf5-c9985908b727",
+      "name": "Mistral Cloud Chat Model3",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"source\": \"string\",\n  \"headline\": \"string\",\n  \"brief\": \"string\",\n  \"model\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        2048
+      ],
+      "id": "b92da534-1949-4190-99a9-c0213474a34f",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Choose the single most important technology headline.\n\nReturn ONLY valid JSON.\n\nIMPORTANT:\n- In \"model\",  auto detect which ai model you are using for modelChoose the single most important technology headline.\nReturn ONLY valid JSON. No markdown, no backticks.\n\nFor the \"model\" field, select your identity from this list ONLY:\n- \"mistral-small\"\n- \"gpt-4o-mini\"\nPick the one that matches what you are. Do not write anything else.\n\n{\n  \"source\": \"techweez\",\n  \"headline\": \"headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \"pick from list above\"\n}\n\nHeadlines:\n{{$json.headlines}}\n\n",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        1824
+      ],
+      "id": "00ab80a6-c774-408c-9334-7fdc15f43a64",
+      "name": "Role-Based Agents techweez",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Choose the single most important technology headline.\n\nReturn ONLY valid JSON.\n\nIMPORTANT:\n- In \"model\",  auto detect which ai model you are using for modelChoose the single most important technology headline.\nReturn ONLY valid JSON. No markdown, no backticks.\n\nFor the \"model\" field, select your identity from this list ONLY:\n- \"mistral-small\"\n- \"gemini-2.5-flash\"\nPick the one that matches what you are. Do not write anything else.\n\n{\n  \"source\": \"tech-ish\",\n  \"headline\": \"headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \"pick from list above\"\n}\n\nHeadlines:\n{{$json.headlines}}\n\n",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        2640
+      ],
+      "id": "4183225f-44d8-43a2-aa29-927096f92d23",
+      "name": "Role-Based Agents tech-ish",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        2864
+      ],
+      "id": "cf6ec6bd-f207-4c9f-a4c5-0d8d2661a7ba",
+      "name": "Mistral Cloud Chat Model4",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"source\": \"string\",\n  \"headline\": \"string\",\n  \"brief\": \"string\",\n  \"model\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        2864
+      ],
+      "id": "cd693788-c9d9-4833-bd39-d95ab0d1a497",
+      "name": "Structured Output Parser4"
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        656,
+        1376
+      ],
+      "id": "e0e454ae-a1f8-45b1-bf94-1e696d983c83",
+      "name": "Merging Intelligence"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are Kamau, a witty Kenyan tech editor writing engaging newsletter intros for African startup and technology audiences.\n\nYour tone should be:\n- Clever, conversational, and slightly playful\n- Confident but concise\n- Naturally Kenyan in expression\n- Informative without sounding corporate\n\nWriting style rules:\n- Use occasional Kenyan slang naturally (examples: “Bazeng”, “Form ni gani”, “mambo ni matatu”, “si mchezo”, “maze”).\n- Keep transitions smooth and energetic.\n- Sound like a smart insider summarizing what matters in tech this week.\n- Avoid overusing slang.\n- Do not use emojis unless explicitly requested.\n\nTask:\nYou are given 5 technology stories.\n\nSynthesize ALL stories into ONE cohesive newsletter introduction that highlights:\n- major tech trends\n- startup ecosystem movements\n- funding, regulation, AI, fintech, telecom, or innovation patterns\n- the overall mood of the African tech scene\n\nDo NOT summarize stories one by one.\nBlend them naturally into a single narrative.\n\nOutput Constraints:\n1. Strictly under 200 words.\n2. Use Kenyan slang naturally.\n3. Format the response as Markdown.\n4. Include a catchy opening line.\n5. Focus on patterns/themes across the stories.\n6. End with a short punchy sign-off.\n\nStories:\n{{ JSON.stringify($json.results, null, 2) }}\n\nOutput:\nOnly return the final Markdown intro.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1200,
+        1424
+      ],
+      "id": "45eef53e-d0f1-4a56-8162-3e42adda2225",
+      "name": "The Chief Editor",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        1648
+      ],
+      "id": "762e6315-3058-46b9-9d0f-814f7ec504f4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nBWoSNJH0uHf2qhQ",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  let text = item.json.output;\n\n  text = text\n    // Remove markdown code blocks\n    .replace(/```markdown|```/g, '')\n\n    // Remove markdown formatting symbols only\n    .replace(/[#*_>`]/g, '')\n\n    // Remove emojis\n    .replace(/[\\u{1F300}-\\u{1FAFF}]/gu, '')\n\n    // Normalize new lines/spaces\n    .replace(/\\n+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n\n  return {\n    json: {\n      clean_output: text\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        1424
+      ],
+      "id": "80725d71-e3c8-4d31-ba48-23b635996c0a",
+      "name": "Code to clean the markdown"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1vlBJOciyKpd3X7p6cfXIQttYpO1mtwsf7V9quiBZha0/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vlBJOciyKpd3X7p6cfXIQttYpO1mtwsf7V9quiBZha0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $('Schedule Trigger').item.json.timestamp }}",
+            "Model Used": "={{ $('Merging Intelligence').all().map(i => i.json.output.model).join(', ') }}",
+            "Successful Sources": "={{ $('Merging Intelligence').all().filter(i => i.json.output.source != null).length }}/5 sources",
+            "Draft Body": "={{ $json.clean_output }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Successful Sources",
+              "displayName": "Successful Sources",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Draft Body",
+              "displayName": "Draft Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Model Used",
+              "displayName": "Model Used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clean_output",
+              "displayName": "clean_output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2080,
+        1424
+      ],
+      "id": "0182d78e-9b11-469a-bb62-bb016b7358a3",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gWuAUpxetQblJZLI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let html = item.json.data || '';\n\n  // Remove scripts/styles\n  html = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '');\n  html = html.replace(/<style[\\s\\S]*?<\\/style>/gi, '');\n  html = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '');\n  html = html.replace(/<!--[\\s\\S]*?-->/g, '');\n\n  // Extract headings\n  const matches = [\n    ...html.matchAll(/<h1[^>]*>(.*?)<\\/h1>/gi),\n    ...html.matchAll(/<h2[^>]*>(.*?)<\\/h2>/gi),\n    ...html.matchAll(/<h3[^>]*>(.*?)<\\/h3>/gi)\n  ];\n\n  let headlines = matches.map(m =>\n    m[1]\n      .replace(/<[^>]+>/g, '')\n      .replace(/\\s+/g, ' ')\n      .trim()\n  );\n\n  // Remove junk\n  headlines = headlines.filter(h =>\n    h.length > 15 &&\n    h.length < 200 &&\n    !h.toLowerCase().includes('read more')\n  );\n\n  // Remove duplicates\n  headlines = [...new Set(headlines)];\n\n  return {\n    json: {\n      headlines\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        208
+      ],
+      "id": "82efc4d9-7ed8-4265-9be6-8f5241623440",
+      "name": "data cleaner techcabal"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Choose the single most important technology headline.\n\nReturn ONLY valid JSON.\n\nIMPORTANT:\n- In \"model\",  auto detect which ai model you are using for modelChoose the single most important technology headline.\nReturn ONLY valid JSON. No markdown, no backticks.\n\nFor the \"model\" field, select your identity from this list ONLY:\n- \"mistral-small\"\n- \"gemini-2.5-flash\"\nPick the one that matches what you are. Do not write anything else.\n\n{\n  \"source\": \"techweez\",\n  \"headline\": \"headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \"pick from list above\"\n}\n\nHeadlines:\n{{$json.headlines}}\n\n{\n  \"source\": \"TechCabal\",\n  \"headline\": \"Headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \" \"\n}\n\nHeadlines:\n{{$json.headlines}}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d9f4df76-ddfb-4047-9280-c60736585d10",
+      "name": "Role-Based Agents techcabal",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        32,
+        224
+      ],
+      "id": "b6a718eb-7b83-496e-9940-46c1ab7f4ac2",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MSXWUaHbc6dRAkDl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        224
+      ],
+      "id": "66ee9057-1a6b-4458-b66b-58a7c7b1b3c0",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        832
+      ],
+      "id": "0bfcb776-08ae-4741-81c4-6163d8b0304c",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        32,
+        832
+      ],
+      "id": "3af34a9e-4497-4b13-80d0-012c7a6e3ff0",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nBWoSNJH0uHf2qhQ",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        1440
+      ],
+      "id": "97ddbffa-f955-48a1-97d5-6f89045455ae",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        32,
+        1440
+      ],
+      "id": "b2014866-13f8-4f23-8b64-72e3756a58c0",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MSXWUaHbc6dRAkDl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        2048
+      ],
+      "id": "d2b2d548-aa83-4e97-b0b1-d6cf5392609c",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        32,
+        2048
+      ],
+      "id": "38e32b91-8155-4f52-af0c-f5ff2cde5028",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nBWoSNJH0uHf2qhQ",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        2864
+      ],
+      "id": "7e1018d1-5904-4013-a879-3d6c77e5deda",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        32,
+        2864
+      ],
+      "id": "bc4f89ab-3001-4051-8121-85277460a509",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MSXWUaHbc6dRAkDl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let html = item.json.data || '';\n\n  // Remove scripts/styles\n  html = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '');\n  html = html.replace(/<style[\\s\\S]*?<\\/style>/gi, '');\n  html = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '');\n  html = html.replace(/<!--[\\s\\S]*?-->/g, '');\n\n  // Extract headings\n  const matches = [\n    ...html.matchAll(/<h1[^>]*>(.*?)<\\/h1>/gi),\n    ...html.matchAll(/<h2[^>]*>(.*?)<\\/h2>/gi),\n    ...html.matchAll(/<h3[^>]*>(.*?)<\\/h3>/gi)\n  ];\n\n  let headlines = matches.map(m =>\n    m[1]\n      .replace(/<[^>]+>/g, '')\n      .replace(/\\s+/g, ' ')\n      .trim()\n  );\n\n  // Remove junk\n  headlines = headlines.filter(h =>\n    h.length > 15 &&\n    h.length < 200 &&\n    !h.toLowerCase().includes('read more')\n  );\n\n  // Remove duplicates\n  headlines = [...new Set(headlines)];\n\n  return {\n    json: {\n      headlines\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        1424
+      ],
+      "id": "075e168f-b742-4ebf-a56f-c42569233a39",
+      "name": "data cleaner citizen-digital"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Choose the single most important technology headline.\n\nReturn ONLY valid JSON.\n\nIMPORTANT:\n- In \"model\",  auto detect which ai model you are using for modelChoose the single most important technology headline.\nReturn ONLY valid JSON. No markdown, no backticks.\n\nFor the \"model\" field, select your identity from this list ONLY:\n- \"mistral-small\"\n- \"gemini-2.5-flash\"\nPick the one that matches what you are. Do not write anything else.\n\n{\n  \"source\": \"citizen-digital\",\n  \"headline\": \"headline\",\n  \"brief\": \"1-2 sentence summary\",\n  \"model\": \"pick from list above\"\n}\n\nHeadlines:\n{{$json.headlines}}\n\n",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        1216
+      ],
+      "id": "4698a696-7d16-4733-8fa5-a4feaeb71a10",
+      "name": "Role-Based Agents citizen digital",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://www.techarena.co.ke/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        816
+      ],
+      "id": "23289524-4717-4f96-b7b1-9d3de2d60ffd",
+      "name": "techarena",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $now }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1360,
+        1648
+      ],
+      "id": "318a58e8-cd8a-4529-ac3e-b880476c1b39",
+      "name": "Simple Memory5"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        1648
+      ],
+      "id": "a238621e-7033-4f65-b14f-878bc1e5e620",
+      "name": "Mistral Cloud Chat Model5",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const combined = items.map(item => item.json);\n\nreturn [\n  {\n    json: {\n      results: combined\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        1424
+      ],
+      "id": "4c7956a1-a0eb-417c-826a-1e0f948e96e6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "mwangie27@gmail.com",
+        "subject": "Newsletter",
+        "message": "={{ $('Code to clean the markdown').item.json.clean_output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2304,
+        1424
+      ],
+      "id": "2f46e7e5-006c-4a0d-99e7-f1f289703064",
+      "name": "draft to the marketing team for approval.",
+      "webhookId": "4e8749e8-56cb-4e3d-afe5-28ff6a254010",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "94HPeoD5LiASMAPr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        368,
+        432
+      ],
+      "id": "b6d657d1-e0ad-464e-bfec-93de76c6a698",
+      "name": "Mistral Cloud Chat Model6",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        368,
+        1040
+      ],
+      "id": "1e94e8bb-6472-4649-917e-f54d97e5b097",
+      "name": "Mistral Cloud Chat Model7",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        368,
+        1648
+      ],
+      "id": "a4e87813-18cc-437c-8035-7f306a4974a7",
+      "name": "Mistral Cloud Chat Model8",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        368,
+        2256
+      ],
+      "id": "e8894cf9-adcd-4690-a81c-010dbd76defd",
+      "name": "Mistral Cloud Chat Model9",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        368,
+        3072
+      ],
+      "id": "8a0516d3-6130-4959-b7ec-d903abfb483f",
+      "name": "Mistral Cloud Chat Model10",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "NZBUyICGA0mYH1MW",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\n\"output\":\"\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        1648
+      ],
+      "id": "ee25c459-f941-4443-8015-d5ba36357f9e",
+      "name": "Structured Output Parser5"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        1856
+      ],
+      "id": "248f6a3b-663b-4023-955a-1f57933ecc57",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MSXWUaHbc6dRAkDl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "techarena",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TechCabal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "citizen business",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "techweez",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "tech-ish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TechCabal": {
+      "main": [
+        [
+          {
+            "node": "data cleaner techcabal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents citizen digital",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "citizen business": {
+      "main": [
+        [
+          {
+            "node": "data cleaner citizen-digital",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Role-Based Agents citizen digital",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techcabal",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Role-Based Agents techcabal",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "techweez": {
+      "main": [
+        [
+          {
+            "node": "techweez data cleaner1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tech-ish": {
+      "main": [
+        [
+          {
+            "node": "tech-ish data cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tech-ish data cleaner": {
+      "main": [
+        [
+          {
+            "node": "Role-Based Agents tech-ish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "techweez data cleaner1": {
+      "main": [
+        [
+          {
+            "node": "Role-Based Agents techweez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "techarena data cleaner": {
+      "main": [
+        [
+          {
+            "node": "Role-Based Agents techarena",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techarena",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Role-Based Agents techarena",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techweez",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Role-Based Agents techweez",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents tech-ish",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser4": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Role-Based Agents tech-ish",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Role-Based Agents techarena": {
+      "main": [
+        [
+          {
+            "node": "Merging Intelligence",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Role-Based Agents techweez": {
+      "main": [
+        [
+          {
+            "node": "Merging Intelligence",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Role-Based Agents tech-ish": {
+      "main": [
+        [
+          {
+            "node": "Merging Intelligence",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Merging Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "The Chief Editor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "The Chief Editor": {
+      "main": [
+        [
+          {
+            "node": "Code to clean the markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code to clean the markdown": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "data cleaner techcabal": {
+      "main": [
+        [
+          {
+            "node": "Role-Based Agents techcabal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Role-Based Agents techcabal": {
+      "main": [
+        [
+          {
+            "node": "Merging Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techcabal",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Role-Based Agents techcabal",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Role-Based Agents techarena",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techarena",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Role-Based Agents citizen digital",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents citizen digital",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Role-Based Agents techweez",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents techweez",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "Role-Based Agents tech-ish",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Role-Based Agents tech-ish",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "data cleaner citizen-digital": {
+      "main": [
+        [
+          {
+            "node": "Role-Based Agents citizen digital",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Role-Based Agents citizen digital": {
+      "main": [
+        [
+          {
+            "node": "Merging Intelligence",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "techarena": {
+      "main": [
+        [
+          {
+            "node": "techarena data cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory5": {
+      "ai_memory": [
+        [
+          {
+            "node": "The Chief Editor",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "The Chief Editor",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "The Chief Editor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model8": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model9": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model10": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "draft to the marketing team for approval.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser5": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "The Chief Editor",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser5",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f5a959f1-25b3-490f-9f0b-82d023c90128",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ed60d2f83c3290883ece8513aa65909e85e86485980b74bcc40589abd9cebd63"
+  },
+  "id": "fBdqNoC3XOQ67czJ",
+  "tags": []
+}
