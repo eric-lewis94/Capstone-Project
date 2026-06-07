@@ -1,321 +1,489 @@
-# Automated Weekly Newsletter Generator
+Week 10 Final Capstone — Production Upgrade
+*Eric Munjiru & Pearl Wangechi* · Moringa School · June 2026
 
-> A fault-tolerant, AI-powered newsletter pipeline built on n8n. Scrapes 5 African tech news sources, uses multiple AI models to curate and write, logs every run, and sends a draft for human approval — automatically, every week.
+---
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [What Changed from v1](#what-changed-from-v1)
+3. [Architecture](#architecture)
+4. [Project Structure](#project-structure)
+5. [Prerequisites](#prerequisites)
+6. [Environment & Credentials Setup](#environment--credentials-setup)
+7. [Installation & Import Guide](#installation--import-guide)
+8. [Configuration](#configuration)
+9. [Usage Guide](#usage-guide)
+10. [Workflow Breakdown](#workflow-breakdown)
+11. [Error Handling & Fault Tolerance](#error-handling--fault-tolerance)
+12. [Operational Logging](#operational-logging)
+13. [Model Strategy & Fallbacks](#model-strategy--fallbacks)
+14. [Deployment](#deployment)
+15. [Troubleshooting](#troubleshooting)
+
+---
+
+## Project Overview
+
+This workflow automates the creation and distribution of a weekly tech newsletter for *Nairobi Nexus*, a Kenyan tech publication. Every Friday at 2 PM, the system:
+
+1. Pulls the latest articles from *5 Kenyan tech news sources* simultaneously
+2. Runs a *role-based AI agent* per source to summarise and reframe content
+3. Merges all successful summaries and passes them to a *Chief Editor AI agent* (Kamau) who writes a witty, Kenyan-voiced newsletter intro
+4. Cleans the output and *drafts an email* to the marketing team for approval
+5. *Logs the run* — timestamp, sources used, newsletter body, and models used — to a Google Sheet
+
+The v2 upgrade transforms this from a functional prototype into a *production-grade, fault-tolerant, auditable system*.
+
+---
+
+## What Changed from v1
+
+The original Week 8 workflow ran well on happy paths but had four critical weaknesses. This upgrade addresses all of them:
+
+| Area | v1 Prototype | v2 Production |
+|---|---|---|
+| *AI output format* | Free text — prompt discipline only | Strict JSON enforced via Structured Output Parsers on all 6 agents |
+| *Source failure handling* | One failed URL stopped the entire workflow | continueErrorOutput on all 11 HTTP + agent nodes — workflow always completes |
+| *Model strategy* | Mistral only — single point of failure | 3-tier: Mistral primary → Gemini fallback → Claude Haiku (editorial) via OpenRouter |
+| *Auditability* | No log — nothing to review after the fact | Timestamped Google Sheets row after every run: sources used, model IDs, body, status |
+| *Output cleanliness* | Raw AI text including markdown artifacts | Code cleaner node strips backticks, headers, asterisks, and emojis before sending |
+| *Node count* | ~30 nodes | 52 nodes — full production pipeline |
+
+---
+
+## Architecture
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  TRIGGER: Weekly Schedule (Friday 14:00)                            │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                       │
+   ┌────▼────┐          ┌──────▼──────┐         ┌─────▼──────┐
+   │TechCabal│          │Citizen Dig. │         │  Techweez  │  ...+2 more
+   └────┬────┘          └──────┬──────┘         └─────┬──────┘
+        │ continueErrorOutput  │ continueErrorOutput   │ continueErrorOutput
+   ┌────▼────┐          ┌──────▼──────┐         ┌─────▼──────┐
+   │ Data    │          │  Data       │         │  Data      │
+   │ Cleaner │          │  Cleaner    │         │  Cleaner   │
+   └────┬────┘          └──────┬──────┘         └─────┬──────┘
+        │                      │                       │
+   ┌────▼──────────────────────▼───────────────────────▼──────┐
+   │  Role-Based Agent (per source)                            │
+   │  Primary: Mistral Small  |  Fallback: Google Gemini       │
+   │  Output: Structured Output Parser (strict JSON schema)    │
+   └──────────────────────────┬────────────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Merging Intelligence│  ← aggregates all successful branches
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Code in JavaScript  │  ← combines results array
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────────────────────┐
+                    │  The Chief Editor (Kamau)             │
+                    │  Model: Claude Haiku via OpenRouter   │
+                    │  Tone: Witty, Kenyan, ≤200 words     │
+                    └──────────┬──────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Code: Clean Output  │  ← strips markdown artifacts
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼──────────────────┐
+              │                                   │
+   ┌──────────▼──────────┐           ┌────────────▼──────────┐
+   │  Gmail Draft         │           │  Google Sheets Log    │
+   │  → Marketing Team    │           │  (NewsletterManager)  │
+   └─────────────────────┘           └───────────────────────┘
+
 
 ---
 
 ## Project Structure
 
-```
-newsletter-generator/
-├── workflow/
-│   └── Project__Automated_Weekly_Newsletter_Generator__2_.json   # n8n workflow export
+
+automated-newsletter-generator/
+│
+├── README.md                          # This file
+│
+├── workflows/
+│   ├── newsletter_generator_v2.json   # Main production workflow (import this into n8n)
+│   └── newsletter_generator_v1.json   # Original Week 8 prototype (reference only)
+│
 ├── docs/
-│   └── ProjectDocumentation_NewsletterGenerator.md               # Full technical docs
-│   └── NewsletterGenerator_Presentation.pptx                     # Stakeholder deck
-└── README.md                                                      # This file
-```
+│   ├── capstone_presentation.pdf      # Panel presentation document
+│   ├── architecture_diagram.png       # Full workflow canvas screenshot
+│   └── node_configs/                  # Screenshots of each node configuration
+│       ├── schedule_trigger.png
+│       ├── role_based_agent_techcabal.png
+│       ├── structured_output_parser.png
+│       ├── merging_intelligence.png
+│       ├── chief_editor.png
+│       ├── code_cleaner.png
+│       ├── google_sheets_log.png
+│       └── gmail_draft.png
+│
+├── screenshots/
+│   ├── workflow_full_canvas.png       # Full workflow screenshot
+│   ├── execution_success_run.png      # Successful execution log
+│   ├── execution_partial_run.png      # Partial success (source failure scenario)
+│   ├── google_sheets_log_evidence.png # Log sheet with real run data
+│   └── model_tracking_columns.png     # Model Used column evidence
+│
+└── evidence/
+    ├── fallback_trigger_test.png      # Gemini fallback activation screenshot
+    └── error_handling_test.png        # continueErrorOutput in action
 
-The entire workflow lives in a single n8n JSON file. There is no application code to deploy separately — n8n executes the workflow from its canvas.
 
 ---
 
-## Environment Requirements
+## Prerequisites
 
-| Requirement | Version / Notes |
-|---|---|
-| **n8n** | v1.x (self-hosted or n8n Cloud) |
-| **Node.js** | v18+ (required by n8n) |
-| **LangChain nodes** | Bundled with n8n v1.x — no separate install |
-| **Internet access** | Required to reach news sources and AI APIs |
+- *n8n* — v1.0+ (self-hosted or n8n Cloud). [Install guide →](https://docs.n8n.io/hosting/)
+- *Node.js* — v18.17.0 or higher (required for self-hosted n8n)
+- *npm* — v9+ or *pnpm* v8+
+- A *Google account* with access to:
+  - Google Sheets (for the operational log)
+  - Gmail (for newsletter drafts)
+- API keys for:
+  - [Mistral AI](https://console.mistral.ai/) — primary agent model
+  - [Google Gemini / PaLM API](https://aistudio.google.com/) — fallback model
+  - [OpenRouter](https://openrouter.ai/) — Chief Editor (Claude Haiku routing)
 
-### Required API Credentials
+---
 
-You must create credentials in n8n for each of the following:
+## Environment & Credentials Setup
 
-| Service | n8n Credential Type | Used For |
+This workflow uses *5 credential connections* in n8n. Set these up under *Settings → Credentials* before importing the workflow.
+
+### 1. Mistral Cloud API
+
+Credential type : Mistral Cloud API
+Name            : Mistral Cloud account
+API Key         : <your Mistral API key>
+
+
+### 2. Google Gemini (PaLM) API
+
+Credential type : Google PaLM API
+Name            : Google Gemini(PaLM) Api account
+API Key         : <your Gemini API key from Google AI Studio>
+
+
+### 3. OpenRouter API
+
+Credential type : OpenRouter API
+Name            : OpenRouter account
+API Key         : <your OpenRouter API key>
+
+> OpenRouter routes to Claude Haiku for the Chief Editor node. Ensure your OpenRouter account has credits and anthropic/claude-haiku is enabled.
+
+### 4. Google Sheets OAuth2
+
+Credential type : Google Sheets OAuth2 API
+Name            : Google Sheets account
+Auth method     : OAuth2
+Scopes          : https://www.googleapis.com/auth/spreadsheets
+
+Authenticate with the Google account that owns the NewsletterManager sheet.
+
+### 5. Gmail OAuth2
+
+Credential type : Gmail OAuth2 API
+Name            : Gmail account 2
+Auth method     : OAuth2
+Scopes          : https://www.googleapis.com/auth/gmail.send
+
+
+---
+
+## Installation & Import Guide
+
+### Self-hosted n8n (recommended for full control)
+
+bash
+# Install n8n globally
+npm install n8n -g
+
+# Start n8n
+n8n start
+
+# n8n runs at http://localhost:5678
+
+
+### Import the workflow
+
+1. Open n8n in your browser
+2. Go to *Workflows → Import from file*
+3. Select workflows/newsletter_generator_v2.json
+4. The workflow will import with all node configurations intact
+5. Reconnect each credential (n8n will prompt you — match the credential names above)
+
+### Set up the Google Sheets log
+
+Create a Google Sheet named *NewsletterManager* with a tab called *Drafts* and the following column headers in row 1:
+
+| A | B | C | D |
+|---|---|---|---|
+| Timestamp | Sources Used | Body | Model Used |
+
+Copy the sheet URL and update the *Append row in sheet* node's documentId with your sheet URL.
+
+---
+
+## Configuration
+
+All key parameters can be adjusted directly in the workflow without touching node logic:
+
+| Parameter | Node | Default | How to change |
+|---|---|---|---|
+| *Schedule day* | Schedule Trigger | Every 7 days (Friday) | Edit the daysInterval and triggerAtHour fields |
+| *Send time* | Schedule Trigger | 14:00 (2 PM EAT) | Change triggerAtHour |
+| *Primary model* | All Role-Based Agent nodes | mistral-small-latest | Change model in each Mistral Cloud node |
+| *Fallback model* | All Role-Based Agent nodes | Google Gemini | Swap the Gemini node for another LLM |
+| *Editorial model* | The Chief Editor | Claude Haiku (via OpenRouter) | Change model string in OpenRouter node |
+| *Newsletter tone* | The Chief Editor prompt | Witty Kenyan tech editor | Edit the system prompt in The Chief Editor node |
+| *Max word count* | The Chief Editor prompt | 200 words | Edit the prompt constraint |
+| *Gmail recipient* | Gmail draft node | pearl.kibui@student.moringaschool.com | Update sendTo field |
+| *Log sheet* | Append row in sheet | NewsletterManager → Drafts | Update documentId with your sheet URL |
+
+---
+
+## Usage Guide
+
+### Running manually (testing)
+1. Open the workflow in n8n
+2. Click *Execute Workflow* (the play button)
+3. Watch the execution panel — each branch runs in parallel
+4. Check the *Drafts* tab in your NewsletterManager Google Sheet for the log entry
+5. Check Gmail (as the configured recipient) for the newsletter draft
+
+### Running on schedule
+1. Toggle the workflow to *Active* using the toggle in the top-right
+2. The Schedule Trigger fires automatically every 7 days at 14:00
+3. No further action needed — the log sheet is your weekly evidence trail
+
+### Verifying a run
+Open the NewsletterManager Google Sheet and check the latest row:
+- *Timestamp* — confirms when it ran
+- *Sources Used* — X/5 sources tells you how many succeeded
+- *Body* — the newsletter text that was sent
+- *Model Used* — shows which model(s) generated the output (e.g. mistral-small, gemini-2... indicates fallback activated on one branch)
+
+---
+
+## Workflow Breakdown
+
+### Stage 1 — Data Collection (5 parallel branches)
+
+Each branch fetches from one source independently:
+
+| Branch | Source | URL |
 |---|---|---|
-| Mistral Cloud | `mistralCloudApi` | Fallback AI model (all branches) |
-| Google Gemini (PaLM) | `googlePalmApi` | Primary AI for 3 source branches |
-| OpenRouter | `openRouterApi` | Claude 3.5 Haiku (Chief Editor) + other models |
-| Google Sheets | `googleSheetsOAuth2Api` | Audit log (OAuth2 — needs Google account) |
-| Gmail | `gmailOAuth2` | Draft delivery and approval gate (OAuth2) |
+| TechCabal | Tech & startup news | techcabal.com/category/newsletters/ |
+| Citizen Digital | Business & tech | citizen.digital/news/tech/26 |
+| Techweez | East Africa tech | techweez.com |
+| Tech-Ish | Kenyan tech commentary | tech-ish.com |
+| TechArena | Kenyan tech news | techarena.co.ke |
+
+Every HTTP Request node has continueErrorOutput: true — a failed fetch routes to the error output and is recorded in the log, without affecting other branches.
+
+### Stage 2 — Data Cleaning
+
+Each branch has a dedicated *Code (JavaScript)* cleaner node that:
+- Strips raw HTML tags
+- Extracts readable article text
+- Normalises whitespace and encoding
+- Passes clean text to the role-based agent
+
+### Stage 3 — Role-Based AI Agents (per source)
+
+Each agent is a *LangChain agent* with:
+- *Primary model*: Mistral Small (fast, cost-efficient, strong JSON compliance)
+- *Fallback model*: Google Gemini (different provider = different failure profile)
+- *Memory*: Simple Memory (buffer window, keyed per execution)
+- *Output*: Structured Output Parser enforcing a strict JSON schema
+- *Prompt*: Role-specific — e.g. the TechCabal agent is briefed differently from the TechArena agent to reflect each publication's voice
+
+### Stage 4 — Merging Intelligence
+
+The *Merge* node collects results from all branches that completed successfully. Whether 3, 4, or 5 branches ran, this node aggregates them into a single array passed to the Chief Editor. A *Code in JavaScript* node formats the combined results cleanly.
+
+### Stage 5 — The Chief Editor (Kamau)
+
+The final AI agent, running on *Claude Haiku via OpenRouter*:
+- Receives all successfully merged article summaries
+- Writes a single ≤200-word newsletter intro in Kamau's voice: witty, Kenyan, tech-savvy
+- Records which model it used in its output
+- Has needsFallback: true — OpenRouter auto-routes if Haiku is unavailable
+
+*System persona excerpt:*
+> "You are Kamau, a witty Kenyan tech editor writing engaging newsletter intros for African startup and technology audiences. Use occasional Kenyan slang naturally (Bazeng, mambo ni matatu, si mchezo, maze). Sound like a smart insider summarizing what matters in tech this week."
+
+### Stage 6 — Output Cleaning
+
+The *Code to clean the markdown* node strips any residual formatting from the AI output:
+- Removes `  ` markdown code blocks
+- Strips `#`, `*`, `_`, `>` formatting symbols
+- Removes emojis
+- Normalises newlines and whitespace
+
+### Stage 7 — Output & Logging (parallel)
+
+Two nodes run in parallel after cleaning:
+
+**Gmail Draft** — sends the clean newsletter to the marketing team (`sendAndWait` mode — team must approve before it goes out)
+
+**Google Sheets Log** — appends a row to NewsletterManager → Drafts with:
+- `Timestamp` — ISO datetime of execution
+- `Sources Used` — count of successful sources (e.g. `5/5 sources`)
+- `Body` — full newsletter text
+- `Model Used` — comma-separated list of model IDs used across all agents
 
 ---
 
-## Installation
+## Error Handling & Fault Tolerance
 
-### Option A — n8n Cloud (Recommended for Getting Started)
+### continueErrorOutput — how it works
 
-1. Sign up at [n8n.io](https://n8n.io)
-2. Create a new workflow
-3. Click the **⋮** menu → **Import from file**
-4. Upload `Project__Automated_Weekly_Newsletter_Generator__2_.json`
-5. Follow [Setup & Configuration](#setup--configuration) below
+n8n's `continueErrorOutput` setting routes failed items through the **error output** of a node instead of stopping execution. This is enabled on:
 
-### Option B — Self-Hosted (Docker)
+- All 5 HTTP Request (source fetch) nodes
+- All 5 role-based agent nodes
+- The Chief Editor agent node
 
-```bash
-# Pull and run n8n
+This means **no single failure stops the workflow**. Failed branches are silently isolated; successful branches continue to the merge stage.
+
+### What each failure type does
+
+| Failure | Detection | Recovery |
+|---|---|---|
+| Source URL unreachable / 4xx / 5xx | `continueErrorOutput` on HTTP node | Branch exits early; other 4 branches unaffected |
+| AI agent returns malformed JSON | Structured Output Parser catches schema mismatch | Branch error-routed; merge receives remaining valid results |
+| Primary model timeout / quota exceeded | `continueErrorOutput` + Gemini fallback wired to same agent | Gemini activates on the same execution without restart |
+| Chief Editor failure | `needsFallback: true` + OpenRouter auto-routing | OpenRouter switches to available model automatically |
+| All 5 sources fail | Merge receives empty set | Chief Editor still runs; log records `0/5 sources`; Gmail draft sent with notice |
+
+### Partial success handling
+
+The **Merging Intelligence** node is configured to accept results from whichever branches completed. The log's `Sources Used` field makes partial success immediately visible — `3/5 sources` tells the team exactly what happened, without anyone opening n8n.
+
+---
+
+## Operational Logging
+
+After every execution, a row is appended to the **NewsletterManager Google Sheet** (Drafts tab):
+
+| Column | What is recorded | Operational value |
+|---|---|---|
+| Timestamp | ISO datetime of the run | Confirms when the workflow executed |
+| Sources Used | `X/5 sources` | Immediately shows if any sources failed |
+| Body | Full newsletter text | Proof of what was sent; replayable |
+| Model Used | Model IDs from all agents | Shows which models ran; Gemini appearing indicates fallback activated |
+
+**If someone asks "what happened last Friday?"** — open the sheet, find the row with Friday's timestamp, and every question is answered in under 30 seconds.
+
+A **missing row** means the run failed entirely — the absence of a log entry is itself a signal to the ops team.
+
+---
+
+## Model Strategy & Fallbacks
+
+
+Per-source agents:
+  PRIMARY  →  Mistral Small (mistral-small-latest)
+                 ↓ on error/timeout
+  FALLBACK →  Google Gemini
+
+Chief Editor:
+  PRIMARY  →  Claude Haiku via OpenRouter
+                 ↓ if Haiku unavailable
+  AUTO     →  OpenRouter routes to next available Anthropic model
+
+
+**Why Mistral as primary?** Fast inference, low cost, strong JSON schema compliance, minimal hallucination on structured extraction tasks.
+
+**Why Gemini as fallback?** Runs on Google infrastructure — a different cloud provider from Mistral means the two are unlikely to fail simultaneously. Different failure profile = genuine resilience.
+
+**Why Claude Haiku for the Chief Editor?** The editorial step produces the one piece of text the audience actually reads. Haiku has the strongest narrative coherence and tone control of the models available. The higher cost is justified for a single final-output call.
+
+---
+
+## Deployment
+
+### n8n Cloud (simplest)
+1. Create an account at [n8n.io](https://n8n.io)
+2. Import the workflow JSON
+3. Add credentials under Settings → Credentials
+4. Activate the workflow
+5. n8n Cloud handles hosting, restarts, and uptime
+
+### Self-hosted (Docker — recommended for production)
+
+bash
 docker run -it --rm \
   --name n8n \
   -p 5678:5678 \
   -v ~/.n8n:/home/node/.n8n \
   n8nio/n8n
 
-# Open in browser
-open http://localhost:5678
-```
 
-Then import the workflow JSON via the UI as described in Option A.
+For persistent deployments, use Docker Compose with a PostgreSQL backend. See the [n8n self-hosting guide](https://docs.n8n.io/hosting/installation/docker/).
 
-### Option C — Self-Hosted (npm)
+**Environment variables to set:**
 
-```bash
-npm install -g n8n
-n8n start
-# Open http://localhost:5678
-```
-
----
-
-## Setup & Configuration
-
-### Step 1 — Import the Workflow
-
-1. In n8n, go to **Workflows** → **New**
-2. Click **⋮** → **Import from file**
-3. Select the `.json` workflow file
-4. The workflow canvas will load with all nodes
-
-### Step 2 — Configure Credentials
-
-For each credential type below, go to **Settings → Credentials → New** in n8n:
-
-#### Mistral Cloud
-- Credential name: `Mistral Cloud account`
-- API Key: Get from [console.mistral.ai](https://console.mistral.ai)
-
-#### Google Gemini
-- Credential name: `Google Gemini(PaLM) Api account`
-- API Key: Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
-
-#### OpenRouter
-- Credential name: `OpenRouter account 2`
-- API Key: Get from [openrouter.ai/keys](https://openrouter.ai/keys)
-- Note: Ensure your account has credits for `anthropic/claude-3.5-haiku`
-
-#### Google Sheets (OAuth2)
-- Credential name: `Google Sheets account`
-- Follow n8n's OAuth2 flow to connect your Google account
-- You will need to grant access to Google Sheets
-
-#### Gmail (OAuth2)
-- Credential name: `Gmail account`
-- Follow n8n's OAuth2 flow to connect your Gmail account
-- You will need to grant access to send email
-
-### Step 3 — Configure the Google Sheet
-
-1. Create a new Google Sheet with these column headers in row 1:
-   - `Date`
-   - `Successful Sources`
-   - `Model Used`
-   - `Draft Body`
-2. Copy the spreadsheet URL
-3. In n8n, open the **Append row in sheet** node
-4. Update the `documentId` field with your spreadsheet URL
-
-### Step 4 — Configure the Recipient Email
-
-1. Open the **draft to the marketing team for approval.** node (Gmail node)
-2. Update the `sendTo` field with the editor's email address
-
-### Step 5 — Activate the Workflow
-
-1. In the workflow editor, toggle **Active** in the top-right corner
-2. The workflow will now run automatically on the configured schedule (Fridays at 14:00)
-3. To test immediately: click **Test Workflow** in the editor
-
----
-
-## Usage Guide
-
-### Normal Operation
-
-Once activated, the workflow runs every 7 days at 14:00 with no intervention required.
-
-**What happens:**
-1. 5 news sources are scraped simultaneously
-2. An AI agent curates the top headline from each source
-3. The Chief Editor AI synthesises a 200-word newsletter draft
-4. The draft is logged to Google Sheets
-5. An email arrives in the editor's inbox with the draft
-6. The editor clicks **Approve** or **Reject** in the email
-7. (If approved, the newsletter is dispatched — you can add a final send step)
-
-### Manual Execution
-
-To run the workflow on demand without waiting for the schedule:
-
-1. Open the workflow in n8n
-2. Click **Test Workflow** (the ▶ button in the top toolbar)
-3. The workflow executes once immediately
-
-### Checking the Audit Log
-
-Open your Google Sheet. Each row represents one execution:
-
-- **Date** — when the run started
-- **Successful Sources** — e.g. `4/5 sources` (indicates one source failed)
-- **Model Used** — which AI models contributed to this newsletter
-- **Draft Body** — the full newsletter text for reference
-
-### Monitoring
-
-n8n provides execution history under **Executions** in the sidebar. Each run shows:
-- Which nodes succeeded or failed
-- Input and output data for each node
-- Timestamps and duration
-
----
-
-## Deployment Instructions
-
-### Production Checklist
-
-- [ ] All 5 credentials configured and tested
-- [ ] Google Sheet created with correct column headers
-- [ ] Recipient email address updated
-- [ ] Workflow activated (toggle is ON)
-- [ ] Test execution completed successfully
-- [ ] Google Sheet audit log populated with test row
-- [ ] Approval email received and confirmed working
-
-### Environment Variables (Self-Hosted)
-
-If running n8n with environment variables instead of UI credentials:
-
-```bash
-# Optional: configure n8n base settings
+env
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=your_password
+N8N_HOST=your-domain.com
 N8N_PORT=5678
-N8N_HOST=localhost
-N8N_PROTOCOL=http
-WEBHOOK_URL=http://localhost:5678/
-
-# Encryption key for stored credentials (change this!)
-N8N_ENCRYPTION_KEY=your-random-encryption-key-here
+N8N_PROTOCOL=https
+WEBHOOK_URL=https://your-domain.com/
 ```
-
-API keys are stored encrypted within n8n's credential store and are not exposed in the workflow JSON.
-
-### Scaling Considerations
-
-- **n8n Cloud:** Handles scaling automatically; suitable for most use cases
-- **Self-hosted:** For high reliability, run n8n with a PostgreSQL database backend (not SQLite) and use Docker Compose or Kubernetes
-- The workflow itself has no scaling requirements — it runs once per week and completes in under 2 minutes on average
 
 ---
 
 ## Troubleshooting
 
-### Workflow Does Not Run on Schedule
+*Workflow imports but credentials show as disconnected*
+> Go to Settings → Credentials and re-authenticate each one. n8n credential IDs are instance-specific and won't transfer between installations.
 
-**Cause:** Workflow is not activated.
-**Fix:** Open the workflow and toggle the **Active** switch to ON.
+*One or more source branches always fail*
+> Test the source URL directly in your browser. Some news sites block server-side HTTP requests (bot protection). If blocked, consider using an RSS feed URL for that source instead.
 
----
+*Structured Output Parser failing on every run*
+> The AI model is returning text that doesn't match the expected schema. Open the agent node, click on the last execution, and inspect the raw output. Tighten the prompt: add "Return ONLY valid JSON. No markdown, no backticks, no explanation." to the end of the system prompt.
 
-### HTTP Request Nodes Fail for All Sources
+*Gemini fallback not activating*
+> Confirm your Google Gemini API key is valid and the googlePalmApi credential is correctly linked to the Gemini model nodes. Test by temporarily using an invalid Mistral key to force a fallback trigger.
 
-**Cause:** Network connectivity issue or the n8n instance cannot reach the internet.
-**Fix:** Test connectivity from the n8n host: `curl https://techcabal.com`. If self-hosted, check firewall/proxy settings.
+*Google Sheets log not appending*
+> Confirm the documentId URL in the Append row node matches your sheet URL exactly (including the gid parameter). Confirm the OAuth2 credential has spreadsheets scope. Check that the sheet tab name matches Drafts.
 
----
+*Gmail draft not sending*
+> The node uses sendAndWait mode — the email is sent as a draft awaiting approval, not immediately. Check the Gmail Drafts folder. If nothing appears, confirm the gmailOAuth2 credential has gmail.send scope.
 
-### AI Agent Returns Empty Output
+*Execution times out before all branches complete*
+> Increase the execution timeout in n8n Settings → General. Default is 1 hour; for 5 parallel AI branches this is usually sufficient, but slow model responses can push it.
 
-**Cause:** API key is invalid, exhausted, or the model is unavailable.
-**Fix:**
-1. Go to **Settings → Credentials** and verify the API key
-2. Check your API provider dashboard for quota/billing status
-3. The fallback model (Mistral) should activate automatically — if both fail, check both credentials
-
----
-
-### Structured Output Parser Fails
-
-**Cause:** The AI returned output that could not be parsed even with autoFix.
-**Symptom:** The agent node shows an error in the Executions view.
-**Fix:**
-1. Check the raw AI output in the execution log
-2. Strengthen the prompt by adding: "Return ONLY the JSON object. No explanation. No preamble."
-3. Consider switching the primary model if this happens repeatedly
+*OpenRouter returning model unavailable errors*
+> Log in to [openrouter.ai](https://openrouter.ai), check your credits balance, and confirm anthropic/claude-haiku is available in your plan. You can swap to anthropic/claude-3-haiku-20240307 as an explicit model string in the OpenRouter node.
 
 ---
 
-### Google Sheets Append Fails
+## Authors
 
-**Cause:** OAuth token expired or insufficient permissions.
-**Fix:**
-1. Go to **Settings → Credentials → Google Sheets account**
-2. Click **Reconnect** and re-authenticate with Google
-3. Ensure the Google account has edit access to the target spreadsheet
-
----
-
-### Gmail Approval Email Not Received
-
-**Cause:** Gmail OAuth token expired, or email went to spam.
-**Fix:**
-1. Reconnect Gmail credentials (same as Google Sheets above)
-2. Check spam/junk folder
-3. Add the n8n sender address to the safe senders list
+| | |
+|---|---|
+| *Eric Munjiru* | Workflow architecture, AI systems, model fallback strategy, structured output enforcement, GitHub & documentation |
+| *Pearl Wangechi* | Fault tolerance implementation, operational logging, execution evidence, non-technical documentation |
 
 ---
 
-### Newsletter Draft is Very Short or Off-Topic
-
-**Cause:** Multiple sources failed, leaving the Chief Editor with fewer than 2–3 stories.
-**Fix:**
-1. Check the Google Sheets log — look at the **Successful Sources** column
-2. Check the n8n Executions view for which source nodes errored
-3. If sources are regularly failing, consider replacing them with alternative URLs
-
----
-
-### "Credential not found" Error
-
-**Cause:** The workflow expects a credential with a specific name that doesn't exist.
-**Fix:** The credential names in the workflow are:
-- `Mistral Cloud account`
-- `Google Gemini(PaLM) Api account`
-- `OpenRouter account 2`
-- `Google Sheets account`
-- `Gmail account`
-
-Create credentials with these exact names, or update the node references in the workflow to match your credential names.
-
----
-
-## Adding a New News Source
-
-To add a 6th source to the pipeline:
-
-1. Add a new **HTTP Request** node pointing to the new URL; set `onError: continueErrorOutput`
-2. Connect it to the **Schedule Trigger**
-3. Add a new **HTML Cleaner** Code node (copy an existing one) and connect it
-4. Add a new **AI Agent** node with a Mistral primary + fallback, structured parser, and memory
-5. Connect the agent to the **Merging Intelligence** node (update `numberInputs` to 6)
-6. Update the source name in the agent prompt
-
-No other changes are required. The Chief Editor automatically adapts to the number of stories it receives.
-
----
-
-## License & Credits
-
-- **Workflow Design:** Built as a Week 9 capstone project
-- **AI Models:** Mistral AI, Google Gemini, Anthropic Claude (via OpenRouter)
-- **Automation Platform:** [n8n](https://n8n.io) (fair-code licence)
-- **News Sources:** TechCabal, TechArena, Citizen Digital, Techweez, Tech-ish — all public websites
+Moringa School — Automation & AI Integration · Week 10 Final Capstone · June 2026
